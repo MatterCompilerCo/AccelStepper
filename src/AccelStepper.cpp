@@ -18,83 +18,29 @@ void dump(uint8_t* p, int l)
     }
     Serial.println("");
 }
-#endif
+#endif 
 
 void AccelStepper::moveTo(long absolute)
 {
     if (_targetPos != absolute)
     {
 	_targetPos = absolute;
-	computeNewSpeed();
-	// compute new n?
     }
 }
 
-void AccelStepper::move(long relative)
-{
-    moveTo(_currentPos + relative);
+void AccelStepper::runTrajPoint(float speed,float absolute){
+    Serial.println("======TRAJ POINT======");
+    Serial.print(speed);
+    Serial.print(" ");
+    Serial.println(absolute);
+    
+
+    setTargetPosition(absolute);
+    setSpeed(speed);
 }
 
-// Implements steps according to the current step interval
-// You must call this at least once per step
-// returns true if a step occurred
-boolean AccelStepper::runSpeed()
-{
-    // Dont do anything unless we actually have a step interval
-    if (!_stepInterval)
-	return false;
 
-    unsigned long time = micros();   
-    if (time - _lastStepTime >= _stepInterval)
-    {
-	if (_direction == DIRECTION_CW)
-	{
-	    // Clockwise
-	    _currentPos += 1;
-	}
-	else
-	{
-	    // Anticlockwise  
-	    _currentPos -= 1;
-	}
-	step(_currentPos);
-
-	_lastStepTime = time; // Caution: does not account for costs in step()
-
-	return true;
-    }
-    else
-    {
-	return false;
-    }
-}
-
-long AccelStepper::distanceToGo()
-{
-    return _targetPos - _currentPos;
-}
-
-long AccelStepper::targetPosition()
-{
-    return _targetPos;
-}
-
-long AccelStepper::currentPosition()
-{
-    return _currentPos;
-}
-
-// Useful during initialisations or after initial positioning
-// Sets speed to 0
-void AccelStepper::setCurrentPosition(long position)
-{
-    _targetPos = _currentPos = position;
-    _n = 0;
-    _stepInterval = 0;
-    _speed = 0.0;
-}
-
-void AccelStepper::computeNewSpeed()
+bool AccelStepper::computeNewSpeed()
 {
     long distanceTo = distanceToGo(); // +ve is clockwise from curent location
 
@@ -106,7 +52,7 @@ void AccelStepper::computeNewSpeed()
 	_stepInterval = 0;
 	_speed = 0.0;
 	_n = 0;
-	return;
+	return false;
     }
 
     if (distanceTo > 0)
@@ -176,15 +122,91 @@ void AccelStepper::computeNewSpeed()
 #endif
 }
 
+
+// Implements steps according to the current step interval
+// You must call this at least once per step
+// returns true if a step occurred
+boolean AccelStepper::runSpeed()
+{
+    // Dont do anything unless we actually have a step interval
+    if (!_stepInterval)
+	return false;
+
+    unsigned long time = micros();   
+    if (time - _lastStepTime >= _stepInterval)
+    {
+	if (_direction == DIRECTION_CW)
+	{
+	    // Clockwise
+	    _currentPos += 1;
+	}
+	else
+	{
+	    // Anticlockwise  
+	    _currentPos -= 1;
+	}
+	step(_currentPos);
+
+	_lastStepTime = time; // Caution: does not account for costs in step()
+
+	return true;
+    }
+    else
+    {
+	return false;
+    }
+}
+
+long AccelStepper::distanceToGo()
+{
+    return _targetPos - _currentPos;
+}
+
+long AccelStepper::distanceSince()
+{
+    return _currentPos - _startPos;
+}
+
+long AccelStepper::targetPosition()
+{
+    return _targetPos;
+}
+
+void AccelStepper::setTargetPosition(long pos)
+{
+    _targetPos = pos;
+}
+
+long AccelStepper::currentPosition()
+{
+    return _currentPos;
+}
+
+// Useful during initialisations or after initial positioning
+// Sets speed to 0
+void AccelStepper::setCurrentPosition(long position)
+{
+    _targetPos = _currentPos = position;
+    _n = 0;
+    _stepInterval = 0;
+    _speed = 0.0;
+}
+
 // Run the motor to implement speed and acceleration in order to proceed to the target position
 // You must call this at least once per step, preferably in your main loop
 // If the motor is in the desired position, the cost is very small
 // returns true if the motor is still running to the target position.
 boolean AccelStepper::run()
 {
-    if (runSpeed())
-	computeNewSpeed();
-    return _speed != 0.0 || distanceToGo() != 0;
+    if (runSpeed()) {
+        return computeNewSpeed();
+    }
+    else return true;
+    // Serial.print("XXX: ");
+    // Serial.print(_speed);
+    // Serial.print(" ");
+    // Serial.print(distanceToGo());
+    // Serial.println("");
 }
 
 AccelStepper::AccelStepper(uint8_t interface, uint8_t pin1, uint8_t pin2, uint8_t pin3, uint8_t pin4, bool enable)
@@ -192,6 +214,7 @@ AccelStepper::AccelStepper(uint8_t interface, uint8_t pin1, uint8_t pin2, uint8_
     _interface = interface;
     _currentPos = 0;
     _targetPos = 0;
+    _startPos = 0;
     _speed = 0.0;
     _maxSpeed = 1.0;
     _acceleration = 0.0;
@@ -207,7 +230,7 @@ AccelStepper::AccelStepper(uint8_t interface, uint8_t pin1, uint8_t pin2, uint8_
     _enableInverted = false;
     
     // NEW
-    _n = 0;
+    _n = 0.0;
     _c0 = 0.0;
     _cn = 0.0;
     _cmin = 1.0;
@@ -289,7 +312,9 @@ void AccelStepper::setAcceleration(float acceleration)
 	// Recompute _n per Equation 17
 	_n = _n * (_acceleration / acceleration);
 	// New c0 per Equation 7, with correction per Equation 15
+    
 	_c0 = 0.676 * sqrt(2.0 / acceleration) * 1000000.0; // Equation 15
+ 
 	_acceleration = acceleration;
 	computeNewSpeed();
     }
@@ -634,17 +659,17 @@ void AccelStepper::runToNewPosition(long position)
     runToPosition();
 }
 
-void AccelStepper::stop()
-{
-    if (_speed != 0.0)
-    {    
-	long stepsToStop = (long)((_speed * _speed) / (2.0 * _acceleration)) + 1; // Equation 16 (+integer rounding)
-	if (_speed > 0)
-	    move(stepsToStop);
-	else
-	    move(-stepsToStop);
-    }
-}
+// void AccelStepper::stop()
+// {
+//     if (_speed != 0.0)
+//     {    
+// 	long stepsToStop = (long)((_speed * _speed) / (2.0 * _acceleration)) + 1; // Equation 16 (+integer rounding)
+// 	if (_speed > 0)
+// 	    move(stepsToStop);
+// 	else
+// 	    move(-stepsToStop);
+//     }
+// }
 
 bool AccelStepper::isRunning()
 {
