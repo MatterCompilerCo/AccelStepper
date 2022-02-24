@@ -66,8 +66,6 @@ void MultiStepper::addToPlan(float *speeds, long *absolutes) {
 //we're always either accelerating, decelerating, or moving at the constant max velocity
 void MultiStepper::recomputePlan() {
 	int lastIdx = buffer.count()-1;
-	Serial.print("LAST IDX: ");
-	Serial.println(lastIdx);
 	if(lastIdx < 0) return;
     
     planBlock* currBlock = buffer[lastIdx];
@@ -76,7 +74,6 @@ void MultiStepper::recomputePlan() {
 	float *currSpeeds = currBlock->speeds;
 
 	if(lastIdx>0) {
-		Serial.println("Using prev block for previous position");
 		planBlock* prevBlock = buffer[lastIdx-1];
 	 	prevPos = prevBlock->positions;
 
@@ -87,31 +84,28 @@ void MultiStepper::recomputePlan() {
 	}
     // First find the stepper that will take the longest time to move
     float longestTime = 0.0;
-	Serial.println("@@@@@@");
-	for(uint8_t j = 0; j < 5; j++) {
-		float time = abs(*(currPos+j)-*(prevPos+j)) / *(currSpeeds+j);
-		Serial.print(*(currSpeeds+j));
-		Serial.print(" ");
-		Serial.print(*(currPos+j));
-		Serial.print(" ");
-		Serial.println(*(prevPos+j));
-		if(time > longestTime) longestTime = time;
-	}
+	// Serial.println("@@@@@@");
+	// for(uint8_t j = 0; j < 5; j++) {
+	// 	float time = abs(*(currPos+j)-*(prevPos+j)) / *(currSpeeds+j);
+	// 	Serial.print(*(currSpeeds+j));
+	// 	Serial.print(" ");
+	// 	Serial.print(*(currPos+j));
+	// 	Serial.print(" ");
+	// 	Serial.println(*(prevPos+j));
+	// 	if(time > longestTime) longestTime = time;
+	// }
 
-
-
-	Serial.println("====");
 
 	if(longestTime > 0.0){
 		for(uint8_t j = 0; j < 5; j++) {
 			float dist = *(currPos+j)-*(prevPos+j);
 			float newSpeed = dist / longestTime;
-			Serial.print(lastIdx);
-			Serial.print(" ");
-			Serial.print(j);
-			Serial.print(" ");
-			Serial.println(newSpeed);
-			*(currSpeeds+j) = newSpeed;
+			// Serial.print(lastIdx);
+			// Serial.print(" ");
+			// Serial.print(j);
+			// Serial.print(" ");
+			// Serial.println(newSpeed);
+			// *(currSpeeds+j) = newSpeed;
 		}
 	}
 	

@@ -34,7 +34,6 @@ void AccelStepper::runTrajPoint(float speed,float absolute){
     Serial.print(" ");
     Serial.println(absolute);
     
-
     setTargetPosition(absolute);
     setSpeed(speed);
 }
@@ -322,16 +321,15 @@ void AccelStepper::setAcceleration(float acceleration)
 
 void AccelStepper::setSpeed(float speed)
 {
-    if (speed == _speed)
-        return;
     speed = constrain(speed, -_maxSpeed, _maxSpeed);
     if (speed == 0.0)
 	_stepInterval = 0;
     else
     {
 	_stepInterval = fabs(1000000.0 / speed);
-	_direction = (speed > 0.0) ? DIRECTION_CW : DIRECTION_CCW;
+	
     }
+    _direction = (distanceToGo() > 0.0) ? DIRECTION_CW : DIRECTION_CCW;
     _speed = speed;
 }
 
